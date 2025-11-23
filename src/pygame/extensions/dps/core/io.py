@@ -1,0 +1,212 @@
+import dataclasses
+import enum
+import pathlib
+from inspect import isclass, signature
+from types import UnionType
+from typing import Any, Protocol, Type, TypeVar, Union, get_args, get_origin
+
+import pygame
+import yaml
+
+from . import _conf
+from . import utils
+
+ConfigurableT_co = TypeVar("ConfigurableT_co", bound="Configurable")
+
+
+# XXX: this whole module uses a lot of reflection magic
+@dataclasses.dataclass
+class Configurable:
+    """Dataclass mixin to mark config objects as configurable from settings"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @classmethod
+    def from_config(cls: Type[ConfigurableT_co], data: dict) -> ConfigurableT_co:
+        cls_fields = {field for field in signature(cls).parameters}
+
+        data = data or {}
+        defined_params, undefined_params = {}, {}
+        for k, v in data.items():
+            if k in cls_fields:
+                defined_params[k] = v
+            else:
+                undefined_params[k] = v
+
+        o = cls(**defined_params)
+
+        for k, v in undefined_params.items():
+            setattr(o, k, v)
+
+        o._unmarshal_complex_types()
+        return o
+
+    def _unmarshal_complex_types(self) -> None:
+        for field in dataclasses.fields(self):
+            value = getattr(self, field.name)
+            unmarshalled_value = self._unmarshal_field(field.type, value)
+            setattr(self, field.name, unmarshalled_value)
+
+    def _unmarshal_field(self, type_, value) -> Any:
+        if value is None:
+            return None
+
+        if isinstance(value, Configurable):
+            # if the value is already a Configurable type
+            # instance, no need to continue
+            return value
+        elif get_origin(type_) in (Union, UnionType):
+            for t in get_args(type_):
+                if isclass(t):
+                    o = self._unmarshal_class(t, value)
+                    if o is not None:
+                        return o
+        elif isclass(type_):
+            instance = self._unmarshal_class(type_, value)
+            if instance is not None:
+                return instance
+
+        # if the value is a list, expect the field type to be List[T]
+        if isinstance(value, list) and hasattr(type_, "__args__"):
+            type_ = type_.__args__[0]
+            return list(self._unmarshal_field(type_, o) for o in value)
+        # similarly, expect dict values to be typed Dict[K, T]
+        elif isinstance(value, dict):
+            if hasattr(type_, "__args__") and len(type_.__args__) == 2:
+                return {
+                    k: self._unmarshal_field(type_.__args__[1], v)
+                    for k, v in value.items()
+                }
+        return value
+
+    def _unmarshal_class(self, type_: type, value: Any) -> Any:
+        # decode logic for special case clases
+        # TODO: validation for values + error handling
+        if issubclass(type_, enum.Enum):
+            return type_(value)
+        elif issubclass(type_, Configurable):
+            return type_.from_config(value)
+        elif type_ is pygame.font.Font:
+            return pygame.font.SysFont(**value)
+        elif type_ is pygame.Surface:
+            img_path = utils.normalize_path_str(_conf.GAME.resource_dir / value)
+            img = pygame.image.load(img_path)
+            # return a version of the image optimized
+            # for blit with pixel alphas preserved
+            return img.convert_alpha()
+        elif type_ is pygame.Rect:
+            return pygame.Rect(*value)
+        return None
+
+
+# pyright (and thus pylance) has a strict approach to abstract property types,
+# (see discussion in https://github.com/microsoft/pyright/issues/2678)
+# so instead of making Loadable an ABC with abstract properties, define a
+# generic Protocol that Loadable subclasses must adhere to
+class SupportsLoad(Protocol[ConfigurableT_co]):
+    settings_file: str | pathlib.PurePath
+    settings_type: Type[ConfigurableT_co]
+
+    def __init__(self, settings: ConfigurableT_co, *args, **kwargs) -> None: ...
+
+    @classmethod
+    def _load_settings(cls) -> ConfigurableT_co: ...
+
+
+# define a type where upper bound is a SupportsLoad subtype (eg. Game) that
+# expects a concrete Configurable subtype (eg. GameSettings) to reference below
+LoadableT = TypeVar("LoadableT", bound=SupportsLoad[Configurable])
+
+
+class Loadable:
+    """Mixin to mark scenes as loadable from YAML"""
+
+    __loaded = {}
+
+    # needed for mixin as otherwise we may have super() conflicts with
+    # subclasses that also inherit from another parent
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @classmethod
+    def load(cls: Type[LoadableT], *args, **kwargs) -> LoadableT:
+        """Loads referencing class from settings file
+
+        Passes given arguments to the class constructor.
+        Caches classes and files so they are only loaded once.
+
+        If a settings keyword argument is provided, creates an instance with
+        the given values, otherwise loads values from defined settings_file.
+        """
+        # XXX: this works well for singleton classes like menus, but there may
+        # be future classes that require a new instance on load()
+        if cls.__name__ in Loadable.__loaded:
+            return Loadable.__loaded[cls.__name__]
+
+        settings = kwargs.get("settings") or cls._load_settings()
+        o = cls(*args, **kwargs, settings=settings)
+        Loadable.__loaded[cls.__name__] = o
+        return o
+
+    @classmethod
+    def _load_settings(cls: Type[LoadableT]) -> Configurable:
+        filepath = utils.normalize_path_str(_conf.GAME.resource_dir / cls.settings_file)
+        filename = pathlib.PurePath(filepath).name
+        # cache the settings file - useful for future objects that
+        # may load multiple instances from the same settings
+        if filepath in Loadable.__loaded:
+            return Loadable.__loaded[filepath]
+
+        user_settings = {}
+        try:
+            if _conf.GAME.config_dir is not None:
+                path = utils.normalize_path_str(_conf.GAME.config_dir / cls.settings_file)
+                with open(path) as f:
+                    user_settings: dict = yaml.safe_load(f)
+        except OSError:
+            print(f"Failed to open settings file {filename}")
+        except Exception:
+            # TODO: debug log
+            print(f"No user settings found at {filename}")
+
+        try:
+            with open(filepath) as f:
+                settings: dict = yaml.safe_load(f)
+                settings.update(user_settings)
+                Loadable.__loaded[filepath] = settings
+                return cls.settings_type.from_config(settings)
+        except yaml.YAMLError as e:
+            # TODO: log yaml load error
+            print(f"Failed to read YAML from {filepath}: {e}")
+        except (OSError, IOError) as e:
+            print(f"Error reading {filepath}: {e}")
+
+        raise pygame.error(f"Failed to read configuration from {filepath}")
+
+    @staticmethod
+    def save_all():
+        if _conf.GAME.config_dir is not None:
+            for filepath in Loadable.__loaded.keys():
+                Loadable._save(filepath)
+
+    def save(self: SupportsLoad[Configurable]):
+        Loadable._save(self.settings_file)
+
+    @staticmethod
+    def _save(filepath):
+        if _conf.GAME.config_dir is None:
+            return
+
+        filepath = utils.normalize_path_str(_conf.GAME.config_dir / filepath)
+
+        try:
+            settings = Loadable.__loaded[filepath]
+            with open(filepath, "w") as f:
+                yaml.safe_dump(settings, f)
+        except KeyError:
+            print(f"{filepath} not found in loaded file cache")
+        except yaml.YAMLError as e:
+            print(f"Failed to read YAML from {filepath}: {e}")
+        except (OSError, IOError) as e:
+            print(f"Error reading {filepath}: {e}")
