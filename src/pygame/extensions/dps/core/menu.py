@@ -1,10 +1,10 @@
 from typing import List
 
-import pygame
 from pygame.sprite import LayeredDirty
 
-from . import scenes
-from . import button
+import pygame
+
+from . import button, scenes
 
 
 class Menu(scenes.Scene):
@@ -41,6 +41,6 @@ class Menu(scenes.Scene):
         pass  # noop
 
     def dirty_all_sprites(self):
-        for button in self.buttons:
-            if button.visible:
-                button.dirty = 1
+        for btn in self.buttons:
+            if btn.visible:
+                btn.dirty = 1

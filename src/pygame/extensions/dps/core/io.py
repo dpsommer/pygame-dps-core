@@ -5,11 +5,11 @@ from inspect import isclass, signature
 from types import UnionType
 from typing import Any, Protocol, Type, TypeVar, Union, get_args, get_origin
 
-import pygame
 import yaml
 
-from . import _conf
-from . import utils
+import pygame
+
+from . import _conf, utils
 
 ConfigurableT_co = TypeVar("ConfigurableT_co", bound="Configurable")
 
@@ -161,7 +161,9 @@ class Loadable:
         user_settings = {}
         try:
             if _conf.GAME.config_dir is not None:
-                path = utils.normalize_path_str(_conf.GAME.config_dir / cls.settings_file)
+                path = utils.normalize_path_str(
+                    _conf.GAME.config_dir / cls.settings_file
+                )
                 with open(path) as f:
                     user_settings: dict = yaml.safe_load(f)
         except OSError:

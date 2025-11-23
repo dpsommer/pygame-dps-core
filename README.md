@@ -1,3 +1,3 @@
-# pygame Extension core modules  
+# pygame Extension core modules
 
-Common core modules to simplify Pygame development.  
+Common core modules to simplify Pygame development.

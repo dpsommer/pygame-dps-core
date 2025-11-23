@@ -19,13 +19,22 @@ class _PlatformDirSpec:
     windows: str
     subdirectory: str = "pygame"
 
-__CACHE = _PlatformDirSpec(xdg_var="XDG_CACHE_HOME", unix=".cache", darwin="Preferences", windows=".cache")
+
+__CACHE = _PlatformDirSpec(
+    xdg_var="XDG_CACHE_HOME", unix=".cache", darwin="Preferences", windows=".cache"
+)
 # XXX: consider using a .plist file for MacOS?
-__CONFIG = _PlatformDirSpec(xdg_var="XDG_CONFIG_HOME", unix=".config", darwin="Caches", windows="config")
-__DATA = _PlatformDirSpec(xdg_var="XDG_DATA_HOME", unix=".local/share", darwin="", windows="data")
+__CONFIG = _PlatformDirSpec(
+    xdg_var="XDG_CONFIG_HOME", unix=".config", darwin="Caches", windows="config"
+)
+__DATA = _PlatformDirSpec(
+    xdg_var="XDG_DATA_HOME", unix=".local/share", darwin="", windows="data"
+)
 
 
-def _get_local_dir(dir_spec: _PlatformDirSpec, game_dir: str) -> pathlib.PurePath | None:
+def _get_local_dir(
+    dir_spec: _PlatformDirSpec, game_dir: str
+) -> pathlib.PurePath | None:
     local_dir = os.environ.get(dir_spec.xdg_var)
     subdirectory = pathlib.PurePath(dir_spec.subdirectory) / game_dir
 
@@ -72,8 +81,11 @@ class _GameLocal:
 
     def __getattribute__(self, name: str) -> Any:
         if not self.initialized:
-            raise pygame.error("Using dps.core extension, but core.init() was never called!")
+            raise pygame.error(
+                "Using dps.core extension, but core.init() was never called!"
+            )
         return super().__getattribute__(name)
+
 
 GAME = _GameLocal()
 

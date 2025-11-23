@@ -3,10 +3,7 @@ from typing import Type
 
 import pygame
 
-from . import _conf
-from . import io
-from . import scenes
-from . import types
+from . import _conf, io, scenes, types
 
 
 @dataclasses.dataclass

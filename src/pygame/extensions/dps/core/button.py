@@ -3,8 +3,7 @@ from typing import Callable
 
 import pygame
 
-from . import io
-from . import types
+from . import io, types
 
 
 @dataclasses.dataclass
