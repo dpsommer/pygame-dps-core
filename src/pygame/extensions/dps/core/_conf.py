@@ -2,11 +2,12 @@ import dataclasses
 import os
 import pathlib
 import platform
+import tempfile
 from typing import Any
 
 import pygame
 
-from . import utils
+from . import logs, utils
 
 
 @dataclasses.dataclass
@@ -57,7 +58,6 @@ def _get_local_dir(
         try:
             local_dir.mkdir(parents=True)
         except OSError:
-            # TODO: log as warning
             print("Failed to find or create configuration directory; using defaults")
             return None
 
@@ -103,4 +103,6 @@ def init(resource_dir: str | pathlib.PurePath, game_name: str = "My Game"):
     GAME.cache_dir = _get_local_dir(__CACHE, game_dir_name)
     GAME.config_dir = _get_local_dir(__CONFIG, game_dir_name)
     GAME.data_dir = _get_local_dir(__DATA, game_dir_name)
+    log_dir = GAME.data_dir or pathlib.PurePath(tempfile.gettempdir())
+    logs.setup_game_logger(log_dir / "game.log", game_dir_name)
     GAME.initialized = True

@@ -10,6 +10,7 @@ import yaml
 import pygame
 
 from . import _conf, utils
+from .logs import logger
 
 ConfigurableT_co = TypeVar("ConfigurableT_co", bound="Configurable")
 
@@ -167,10 +168,10 @@ class Loadable:
                 with open(path) as f:
                     user_settings: dict = yaml.safe_load(f)
         except OSError:
-            print(f"Failed to open settings file {filename}")
+            logger.error(f"Failed to open settings file {filename}")
         except Exception:
             # TODO: debug log
-            print(f"No user settings found at {filename}")
+            logger.error(f"No user settings found at {filename}")
 
         try:
             with open(filepath) as f:
@@ -180,9 +181,9 @@ class Loadable:
                 return cls.settings_type.from_config(settings)
         except yaml.YAMLError as e:
             # TODO: log yaml load error
-            print(f"Failed to read YAML from {filepath}: {e}")
+            logger.error(f"Failed to read YAML from {filepath}: {e}")
         except (OSError, IOError) as e:
-            print(f"Error reading {filepath}: {e}")
+            logger.error(f"Error reading {filepath}: {e}")
 
         raise pygame.error(f"Failed to read configuration from {filepath}")
 
@@ -207,8 +208,8 @@ class Loadable:
             with open(filepath, "w") as f:
                 yaml.safe_dump(settings, f)
         except KeyError:
-            print(f"{filepath} not found in loaded file cache")
+            logger.error(f"{filepath} not found in loaded file cache")
         except yaml.YAMLError as e:
-            print(f"Failed to read YAML from {filepath}: {e}")
+            logger.error(f"Failed to read YAML from {filepath}: {e}")
         except (OSError, IOError) as e:
-            print(f"Error reading {filepath}: {e}")
+            logger.error(f"Error reading {filepath}: {e}")
