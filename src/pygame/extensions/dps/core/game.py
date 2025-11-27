@@ -1,9 +1,9 @@
 import dataclasses
-from typing import Type
+from typing import Dict, Type
 
 import pygame
 
-from . import _conf, io, scenes, types
+from . import _conf, io, keys, scenes, types
 
 
 @dataclasses.dataclass
@@ -14,8 +14,12 @@ class GameSettings(io.Configurable):
     screen_width: int
     screen_height: int
     fullscreen: bool
-
     framerate: int
+
+    # nested map of scene names to actions to key bindings. allows same key to
+    # be bound to different actions depending on context. all bindings are
+    # defined in the game settings so they can be modified from a main menu
+    key_bindings: Dict[str, Dict[str, keys.KeyBinding]]
     icon: pygame.Surface | None = None
 
 
@@ -48,11 +52,13 @@ class Game(io.Loadable):
 
         self.clock = pygame.time.Clock()
         self.framerate = settings.framerate
+        # load key bindings for all scenes from the game settings since we want
+        # to be able to edit them all from the main menu
+        keys.load_all_bindings(settings.key_bindings)
         self._running = False
 
     def run(self, main_scene: scenes.Scene):
         pygame.init()
-
         scenes.new_scene(main_scene)
         self._rescale()
         self._running = True
@@ -98,6 +104,8 @@ class Game(io.Loadable):
 
     def _tick(self):
         dt = self.clock.tick(self.framerate) / 1000
+        # run pygame.key.get_pressed() once per tick
+        keys.update_pressed()
         scene = scenes.get_active_scene()
         scene.tick(dt)
 
