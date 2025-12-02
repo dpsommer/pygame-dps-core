@@ -1,5 +1,6 @@
+import collections
 import dataclasses
-from typing import Dict, Type
+from typing import Type
 
 import pygame
 
@@ -16,10 +17,6 @@ class GameSettings(io.Configurable):
     fullscreen: bool
     framerate: int
 
-    # nested map of scene names to actions to key bindings. allows same key to
-    # be bound to different actions depending on context. all bindings are
-    # defined in the game settings so they can be modified from a main menu
-    key_bindings: Dict[str, Dict[str, keys.KeyBinding]]
     icon: pygame.Surface | None = None
 
 
@@ -52,9 +49,9 @@ class Game(io.Loadable):
 
         self.clock = pygame.time.Clock()
         self.framerate = settings.framerate
-        # load key bindings for all scenes from the game settings since we want
-        # to be able to edit them all from the main menu
-        keys.load_all_bindings(settings.key_bindings)
+        # keep our own track of key presses on KEYDOWN/KEYUP so that we can set
+        # key toggles correctly if repeat is enabled
+        self._pressed = collections.defaultdict(bool)
         self._running = False
 
     def run(self, main_scene: scenes.Scene):
@@ -74,7 +71,8 @@ class Game(io.Loadable):
         scene = scenes.get_active_scene()
 
         for event in pygame.event.get():
-            # handle system-level events here and everything else in the scene
+            # handle system-level events. all events are still passed to the
+            # scene in case further processing is needed
             match event.type:
                 case pygame.QUIT:
                     self._running = False
@@ -83,12 +81,18 @@ class Game(io.Loadable):
                 case pygame.WINDOWMAXIMIZED:
                     pygame.display.toggle_fullscreen()
                     self._rescale()
+                case pygame.KEYDOWN:
+                    # set our own key pressed value on down/up so toggle
+                    # will still work as expected if repeat is enabled
+                    if not self._pressed[event.key]:
+                        keys.flip_toggle(event.key & pygame.key.get_mods())
+                        self._pressed[event.key] = True
+                case pygame.KEYUP:
+                    self._pressed[event.key] = False
                 case pygame.MOUSEBUTTONDOWN | pygame.MOUSEBUTTONUP | pygame.MOUSEMOTION:
                     # adjust the position of mouse events by the window scale factor
                     event.pos = self._scale_pos(event.pos)
-                    scene.handle_event(event)
-                case _:
-                    scene.handle_event(event)
+            scene.handle_event(event)
 
     def _render(self):
         scene = scenes.get_active_scene()
