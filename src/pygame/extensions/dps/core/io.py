@@ -112,6 +112,9 @@ class SupportsLoad(Protocol[ConfigurableT_co]):
     def __init__(self, settings: ConfigurableT_co, *args, **kwargs) -> None: ...
 
     @classmethod
+    def instance(cls: "Type[LoadableT]", *args, **kwargs) -> "LoadableT": ...
+
+    @classmethod
     def _load_settings(cls) -> ConfigurableT_co: ...
 
 
@@ -131,6 +134,11 @@ class Loadable:
         super().__init__(*args, **kwargs)
 
     @classmethod
+    def instance(cls: Type[LoadableT], *args, **kwargs) -> LoadableT:
+        settings = kwargs.get("settings") or cls._load_settings()
+        return cls(*args, **kwargs, settings=settings)
+
+    @classmethod
     def load(cls: Type[LoadableT], *args, **kwargs) -> LoadableT:
         """Loads referencing class from settings file
 
@@ -140,13 +148,10 @@ class Loadable:
         If a settings keyword argument is provided, creates an instance with
         the given values, otherwise loads values from defined settings_file.
         """
-        # XXX: this works well for singleton classes like menus, but there may
-        # be future classes that require a new instance on load()
         if cls.__name__ in Loadable.__loaded:
             return Loadable.__loaded[cls.__name__]
 
-        settings = kwargs.get("settings") or cls._load_settings()
-        o = cls(*args, **kwargs, settings=settings)
+        o = cls.instance(*args, **kwargs)
         Loadable.__loaded[cls.__name__] = o
         return o
 
