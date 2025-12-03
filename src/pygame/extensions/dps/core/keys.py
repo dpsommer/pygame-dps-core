@@ -1,6 +1,6 @@
 import collections
 import functools
-from typing import Any, Dict, List
+from typing import Dict, List
 
 import pygame
 
@@ -32,19 +32,20 @@ class KeyBinding(io.Configurable):
         return mods_pressed and key_pressed
 
 
-__key_bindings: Dict[Any, Dict[int, KeyBinding]] = {}
+__key_bindings: Dict[str, KeyBinding] = {}
 
 
-def is_key_pressed(key_code: int, context: Any = None) -> bool:
-    if context is not None:
-        return __key_bindings[context][key_code].is_pressed()
-    return __keys_pressed[key_code]
+def is_key_pressed(action: str, default: int | None = None) -> bool:
+    if action in __key_bindings:
+        return __key_bindings[action].is_pressed()
+    # TODO: gamepad detection and impl
+    if default is not None:
+        return __keys_pressed[default]
+    return False
 
 
-# internal functions called by Game when handling key events or on tick
-def load_bindings(context: Any, bindings: Dict[str, KeyBinding]):
-    for key_name, binding in bindings.items():
-        __key_bindings[context][pygame.key.key_code(key_name)] = binding
+def load_bindings(bindings: Dict[str, KeyBinding]):
+    __key_bindings.update(bindings)
 
 
 def update_pressed():

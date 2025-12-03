@@ -1,6 +1,6 @@
 import collections
 import dataclasses
-from typing import Type
+from typing import Dict, Type
 
 import pygame
 
@@ -17,6 +17,7 @@ class GameSettings(io.Configurable):
     fullscreen: bool
     framerate: int
 
+    key_map: Dict[str, keys.KeyBinding] = dataclasses.field(default_factory=dict)
     icon: pygame.Surface | None = None
 
 
@@ -49,6 +50,9 @@ class Game(io.Loadable):
 
         self.clock = pygame.time.Clock()
         self.framerate = settings.framerate
+
+        # action strings mapped to key bindings are loaded into a global lookup
+        keys.load_bindings(settings.key_map)
         # keep our own track of key presses on KEYDOWN/KEYUP so that we can set
         # key toggles correctly if repeat is enabled
         self._pressed = collections.defaultdict(bool)
