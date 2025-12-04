@@ -9,6 +9,8 @@ import pygame
 
 from . import logs, utils
 
+_DEFAULT_GAME_NAME = "My Game"
+
 
 @dataclasses.dataclass
 class _PlatformDirSpec:
@@ -22,11 +24,11 @@ class _PlatformDirSpec:
 
 
 __CACHE = _PlatformDirSpec(
-    xdg_var="XDG_CACHE_HOME", unix=".cache", darwin="Preferences", windows=".cache"
+    xdg_var="XDG_CACHE_HOME", unix=".cache", darwin="Caches", windows=".cache"
 )
 # XXX: consider using a .plist file for MacOS?
 __CONFIG = _PlatformDirSpec(
-    xdg_var="XDG_CONFIG_HOME", unix=".config", darwin="Caches", windows="config"
+    xdg_var="XDG_CONFIG_HOME", unix=".config", darwin="Preferences", windows="config"
 )
 __DATA = _PlatformDirSpec(
     xdg_var="XDG_DATA_HOME", unix=".local/share", darwin="", windows="data"
@@ -67,7 +69,7 @@ def _get_local_dir(
 # values set by module init() method
 @dataclasses.dataclass
 class _GameLocal:
-    name: str = "My Game"
+    name: str = _DEFAULT_GAME_NAME
 
     resource_dir: pathlib.PurePath = pathlib.PurePath()
 
@@ -91,7 +93,7 @@ GAME = _GameLocal()
 
 
 # XXX: pretty janky approach - probably better ways to implement this
-def init(resource_dir: str | pathlib.PurePath, game_name: str = "My Game"):
+def init(resource_dir: str | pathlib.PurePath, game_name: str = _DEFAULT_GAME_NAME):
     if GAME.initialized:
         return
 
