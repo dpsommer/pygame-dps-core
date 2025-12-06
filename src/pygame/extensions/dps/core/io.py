@@ -115,7 +115,7 @@ class SupportsLoad(Protocol[ConfigurableT_co]):
     def instance(cls: "Type[LoadableT]", *args, **kwargs) -> "LoadableT": ...
 
     @classmethod
-    def _load_settings(cls) -> ConfigurableT_co: ...
+    def _load_settings(cls, file: str | None) -> ConfigurableT_co: ...
 
 
 # define a type where upper bound is a SupportsLoad subtype (eg. Game) that
@@ -135,7 +135,8 @@ class Loadable:
 
     @classmethod
     def instance(cls: Type[LoadableT], *args, **kwargs) -> LoadableT:
-        settings = kwargs.get("settings") or cls._load_settings()
+        settings_file = kwargs.get("settings_file")
+        settings = kwargs.get("settings") or cls._load_settings(file=settings_file)
         return cls(*args, **kwargs, settings=settings)
 
     @classmethod
@@ -156,8 +157,9 @@ class Loadable:
         return o
 
     @classmethod
-    def _load_settings(cls: Type[LoadableT]) -> Configurable:
-        filepath = utils.normalize_path_str(_conf.GAME.resource_dir / cls.settings_file)
+    def _load_settings(cls: Type[LoadableT], file: str | None = None) -> Configurable:
+        settings_file = file if file else cls.settings_file
+        filepath = utils.normalize_path_str(_conf.GAME.resource_dir / settings_file)
         filename = pathlib.PurePath(filepath).name
         # cache the settings file - useful for future objects that
         # may load multiple instances from the same settings
