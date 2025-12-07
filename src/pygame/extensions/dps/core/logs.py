@@ -15,7 +15,7 @@ def setup_game_logger(log_file: pathlib.PurePath, name: str, level: int = loggin
     logger.setLevel(level)
 
     formatter = logging.Formatter(
-        "%(asctime)-22s | %(levelname)-8s | %(funcname)s | %(message)s"
+        "%(asctime)-22s | %(levelname)-8s | %(funcName)s | %(message)s"
     )
 
     file_handler = RotatingFileHandler(

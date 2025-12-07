@@ -172,10 +172,9 @@ class Loadable:
                 path = utils.normalize_path_str(_conf.GAME.config_dir / settings_file)
                 with open(path) as f:
                     user_settings: dict = yaml.safe_load(f)
-        except OSError as e:
-            logger.error("Failed to open settings file %s: %s", filename, e)
+        except OSError:
+            logger.debug("No saved user settings file found: %s", filename)
         except Exception as e:
-            # TODO: debug log
             logger.error("Error reading user settings at %s: %s", filename, e)
 
         try:
