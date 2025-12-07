@@ -26,11 +26,6 @@ class Scene(io.Loadable, abc.ABC):
         self.screen.blit(self.background, (0, 0))
         pygame.display.update()
 
-    @property
-    @abc.abstractmethod
-    def name(self) -> str:
-        pass
-
     @abc.abstractmethod
     def draw(self) -> List[pygame.Rect]:
         pass
@@ -40,7 +35,7 @@ class Scene(io.Loadable, abc.ABC):
         pass
 
     @abc.abstractmethod
-    def tick(self, dt: float):
+    def update(self, dt: float):
         pass
 
     @abc.abstractmethod

@@ -82,7 +82,12 @@ class _GameLocal:
     initialized: bool = False
 
     def __getattribute__(self, name: str) -> Any:
-        if not self.initialized:
+        # XXX: this is pretty awful; probably better to implement
+        # this with properties instead
+        initialized = super().__getattribute__("initialized")
+        if name == "initialized":
+            return initialized
+        if not initialized:
             raise pygame.error(
                 "Using dps.core extension, but core.init() was never called!"
             )
@@ -104,7 +109,8 @@ def init(resource_dir: str | pathlib.PurePath, game_name: str = _DEFAULT_GAME_NA
     GAME.resource_dir = resource_dir
     GAME.cache_dir = _get_local_dir(__CACHE, game_dir_name)
     GAME.config_dir = _get_local_dir(__CONFIG, game_dir_name)
-    GAME.data_dir = _get_local_dir(__DATA, game_dir_name)
-    log_dir = GAME.data_dir or pathlib.PurePath(tempfile.gettempdir())
+    data_dir = _get_local_dir(__DATA, game_dir_name)
+    GAME.data_dir = data_dir
+    log_dir = data_dir or pathlib.PurePath(tempfile.gettempdir())
     logs.setup_game_logger(log_dir / "game.log", game_dir_name)
     GAME.initialized = True

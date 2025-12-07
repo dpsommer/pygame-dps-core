@@ -6,7 +6,7 @@ import pygame
 
 from . import io
 
-__keys_pressed: pygame.key.ScancodeWrapper = pygame.key.get_pressed()
+__keys_pressed: pygame.key.ScancodeWrapper
 __keys_toggled: Dict[int, bool] = collections.defaultdict(bool)
 
 

@@ -34,6 +34,8 @@ class Game(io.Loadable):
     settings_type: Type[GameSettings] = GameSettings
 
     def __init__(self, settings: GameSettings):
+        pygame.init()
+
         screen_size = (settings.screen_width, settings.screen_height)
         flags = pygame.RESIZABLE | (settings.fullscreen and pygame.FULLSCREEN)
         self.screen = pygame.display.set_mode(screen_size, flags=flags)
@@ -59,7 +61,6 @@ class Game(io.Loadable):
         self._running = False
 
     def run(self, main_scene: scenes.Scene):
-        pygame.init()
         scenes.new_scene(main_scene)
         self._rescale()
         self._running = True
@@ -114,8 +115,7 @@ class Game(io.Loadable):
         dt = self.clock.tick(self.framerate) / 1000
         # run pygame.key.get_pressed() once per tick
         keys.update_pressed()
-        scene = scenes.get_active_scene()
-        scene.tick(dt)
+        scenes.get_active_scene().update(dt)
 
     def _rescale(self):
         self.rect = self.screen.get_rect()

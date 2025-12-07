@@ -7,13 +7,13 @@ from logging.handlers import RotatingFileHandler
 BACKUP_COUNT = 2
 LOG_FILE_SIZE = 1024**2  # 1MB
 
-logger: logging.Logger
+logger: logging.Logger = logging.Logger("pygame_default", level=logging.INFO)
 
 
 def setup_game_logger(log_file: pathlib.PurePath, name: str, level: int = logging.INFO):
-    global logger
+    logger.name = f"pygame_{name}"
+    logger.setLevel(level)
 
-    logger = logging.Logger(f"pygame_{name}", level=level)
     formatter = logging.Formatter(
         "%(asctime)-22s | %(levelname)-8s | %(funcname)s | %(message)s"
     )

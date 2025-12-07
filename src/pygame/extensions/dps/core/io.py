@@ -135,7 +135,7 @@ class Loadable:
 
     @classmethod
     def instance(cls: Type[LoadableT], *args, **kwargs) -> LoadableT:
-        settings_file = kwargs.get("settings_file")
+        settings_file = kwargs.pop("settings_file", None)
         settings = kwargs.get("settings") or cls._load_settings(file=settings_file)
         return cls(*args, **kwargs, settings=settings)
 
