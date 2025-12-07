@@ -169,16 +169,14 @@ class Loadable:
         user_settings = {}
         try:
             if _conf.GAME.config_dir is not None:
-                path = utils.normalize_path_str(
-                    _conf.GAME.config_dir / cls.settings_file
-                )
+                path = utils.normalize_path_str(_conf.GAME.config_dir / settings_file)
                 with open(path) as f:
                     user_settings: dict = yaml.safe_load(f)
-        except OSError:
-            logger.error(f"Failed to open settings file {filename}")
-        except Exception:
+        except OSError as e:
+            logger.error("Failed to open settings file %s: %s", filename, e)
+        except Exception as e:
             # TODO: debug log
-            logger.error(f"No user settings found at {filename}")
+            logger.error("Error reading user settings at %s: %s", filename, e)
 
         try:
             with open(filepath) as f:
@@ -187,10 +185,9 @@ class Loadable:
                 Loadable.__loaded[filepath] = settings
                 return cls.settings_type.from_config(settings)
         except yaml.YAMLError as e:
-            # TODO: log yaml load error
-            logger.error(f"Failed to read YAML from {filepath}: {e}")
+            logger.error("Failed to read YAML from %s: %s", filepath, e)
         except (OSError, IOError) as e:
-            logger.error(f"Error reading {filepath}: {e}")
+            logger.error("Error reading %s: %s", filepath, e)
 
         raise pygame.error(f"Failed to read configuration from {filepath}")
 
@@ -215,8 +212,8 @@ class Loadable:
             with open(filepath, "w") as f:
                 yaml.safe_dump(settings, f)
         except KeyError:
-            logger.error(f"{filepath} not found in loaded file cache")
+            logger.error("%s not found in loaded file cache", filepath)
         except yaml.YAMLError as e:
-            logger.error(f"Failed to read YAML from {filepath}: {e}")
+            logger.error("Failed to read YAML from %s: %s", filepath, e)
         except (OSError, IOError) as e:
-            logger.error(f"Error reading {filepath}: {e}")
+            logger.error("Error reading %s: %s", filepath, e)
