@@ -5,6 +5,7 @@ from typing import Dict, List
 import pygame
 
 from . import io
+from .logs import logger
 
 
 class KeyBinding(io.Configurable):
@@ -39,13 +40,17 @@ class __KeyController:
     def update(self):
         self.keys_pressed = pygame.key.get_pressed()
 
-    # XXX: rename this to e.g. is_binding_pressed?
-    def is_pressed(self, action: str, default: int | None = None) -> bool:
-        if action in self.key_bindings:
-            return self.key_bindings[action].is_pressed()
-        # TODO: gamepad detection and impl
-        if default is not None:
-            return self.keys_pressed[default]
+    def is_pressed(self, action: int | str, default: int | None = None) -> bool:
+        try:
+            if type(action) is int:
+                return self.keys_pressed[action]
+            if action in self.key_bindings:
+                return self.key_bindings[action].is_pressed()
+            # TODO: gamepad detection and impl
+            if default is not None:
+                return self.keys_pressed[default]
+        except KeyError:
+            logger.warning("Invalid key code, key: %s, default: %s", action, default)
         return False
 
     def load_bindings(self, bindings: Dict[str, KeyBinding]):
