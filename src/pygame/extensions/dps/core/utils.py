@@ -4,6 +4,16 @@ import threading
 from typing import Any, Dict, Tuple
 
 
+def coroutine(f):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        pipe = f(*args, **kwargs)
+        next(pipe)
+        return pipe
+
+    return wrapper
+
+
 # debounce behaviour: timer after initial function call that gets reset
 # on subsequent calls within the timeout window
 def debounce(timeout: float):
