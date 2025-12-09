@@ -4,7 +4,8 @@ from typing import Dict, Type
 
 import pygame
 
-from . import _conf, io, keys, scenes, types
+from . import _conf, io, scenes, types
+from .keys import KeyBinding, key
 
 
 @dataclasses.dataclass
@@ -17,7 +18,7 @@ class GameSettings(io.Configurable):
     fullscreen: bool
     framerate: int
 
-    key_map: Dict[str, keys.KeyBinding] = dataclasses.field(default_factory=dict)
+    key_map: Dict[str, KeyBinding] = dataclasses.field(default_factory=dict)
     icon: pygame.Surface | None = None
 
 
@@ -34,8 +35,6 @@ class Game(io.Loadable):
     settings_type: Type[GameSettings] = GameSettings
 
     def __init__(self, settings: GameSettings):
-        pygame.init()
-
         screen_size = (settings.screen_width, settings.screen_height)
         flags = pygame.RESIZABLE | (settings.fullscreen and pygame.FULLSCREEN)
         self.screen = pygame.display.set_mode(screen_size, flags=flags)
@@ -53,8 +52,8 @@ class Game(io.Loadable):
         self.clock = pygame.time.Clock()
         self.framerate = settings.framerate
 
-        # action strings mapped to key bindings are loaded into a global lookup
-        keys.load_bindings(settings.key_map)
+        # action strings mapped to key bindings are loaded into a controller
+        key.load_bindings(settings.key_map)
         # keep our own track of key presses on KEYDOWN/KEYUP so that we can set
         # key toggles correctly if repeat is enabled
         self._pressed = collections.defaultdict(bool)
@@ -90,7 +89,7 @@ class Game(io.Loadable):
                     # set our own key pressed value on down/up so toggle
                     # will still work as expected if repeat is enabled
                     if not self._pressed[event.key]:
-                        keys.flip_toggle(event.key & pygame.key.get_mods())
+                        key.flip_toggle(event.key & pygame.key.get_mods())
                         self._pressed[event.key] = True
                 case pygame.KEYUP:
                     self._pressed[event.key] = False
@@ -114,7 +113,7 @@ class Game(io.Loadable):
     def _tick(self):
         dt = self.clock.tick(self.framerate) / 1000
         # run pygame.key.get_pressed() once per tick
-        keys.update_pressed()
+        key.update()
         scenes.get_active_scene().update(dt)
 
     def _rescale(self):
