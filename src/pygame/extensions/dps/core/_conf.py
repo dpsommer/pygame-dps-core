@@ -99,6 +99,8 @@ GAME = _GameLocal()
 
 # XXX: pretty janky approach - probably better ways to implement this
 def init(resource_dir: str | pathlib.PurePath, game_name: str = _DEFAULT_GAME_NAME):
+    pygame.init()
+
     if GAME.initialized:
         return
 
