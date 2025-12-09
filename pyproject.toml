@@ -17,11 +17,17 @@ classifiers = [
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
 dynamic = ["version"]
-dependencies = ["pygame>=2.6.0"]
+dependencies = ["pygame==2.6.0", "pyyaml==6.0.3"]
+
+[project.optional-dependencies]
+2d = ["pygame-dps-2d>=0.1.4"]
 
 [project.urls]
 Homepage = "https://github.com/dpsommer/pygame-dps-core"
 Issues = "https://github.com/dpsommer/pygame-dps-core/issues"
+
+[dependency-groups]
+test = ["pytest", "tox"]
 
 [tool.hatch]
 version.source = "vcs"
