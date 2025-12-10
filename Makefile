@@ -6,6 +6,9 @@ init: install trunk test
 
 install:
 	@pip install -e . --group dev
+	@python -m build .
+	@pip install dist/*.whl
+	@rm -rf build dist
 ifeq ($(TRUNK_INSTALLED), 0)
 	@curl https://get.trunk.io -fsSL | bash -s -- -y
 endif
@@ -27,4 +30,4 @@ publish:
 	@pip install --upgrade twine
 	@python -m build .
 	twine upload dist/*
-	@rm -rf build dist *.egg-info
+	@rm -rf build dist
