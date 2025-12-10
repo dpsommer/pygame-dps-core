@@ -1,4 +1,0 @@
--e .
-pygame==2.6.0
-pyyaml==6.0.3
-pytest
