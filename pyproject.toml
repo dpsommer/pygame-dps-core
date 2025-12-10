@@ -29,7 +29,7 @@ Issues = "https://github.com/dpsommer/pygame-dps-core/issues"
 [dependency-groups]
 docs = ["sphinx"]
 test = ["pytest", "coverage", "tox"]
-dev = [{ include_group = "docs" }, { include_group = "test" }]
+dev = [{ include-group = "docs" }, { include-group = "test" }]
 
 [tool.hatch]
 version.source = "vcs"
