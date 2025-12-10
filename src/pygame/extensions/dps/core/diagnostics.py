@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Type
 import pygame
 
 from . import scenes, text
-from .scenes import scene
 
 
 @dataclasses.dataclass
@@ -25,7 +24,7 @@ class Diagnostics(scenes.Scene):
 
     def _on_enter(self):
         super()._on_enter()
-        self._active_scene = scene.get_active_scene()
+        self._active_scene = scenes.get_active_scene()
 
     def add(self, name: str, value: Any):
         self.diagnostics[name] = value
@@ -58,7 +57,7 @@ class Diagnostics(scenes.Scene):
     def handle_event(self, event: pygame.event.Event):
         if event.type == pygame.KEYDOWN:
             if event.key in (pygame.K_F12, pygame.K_ESCAPE):
-                scene.end_current_scene()
+                scenes.end_current_scene()
                 return
         self._active_scene.handle_event(event)
 
