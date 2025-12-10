@@ -42,43 +42,41 @@ class Scene(io.Loadable, abc.ABC):
     def dirty_all_sprites(self):
         pass
 
-    def _reset(self):
+    def reset(self):
         # dirty sprites after update so they are
         # updated when we re-enter the scene
         self.dirty_all_sprites()
 
 
-# track the scene stack so we can overlay scenes
-__scenes: deque[Scene] = deque()
+class __SceneController:
+
+    def __init__(self) -> None:
+        self.scenes: deque[Scene] = deque()
+
+    def get_active_scene(self) -> Scene:
+        """Returns the currently active scene"""
+        if not self.scenes:
+            raise pygame.error("No active scene!")
+        return self.scenes[0]
+
+    def new_scene(self, scene: Scene):
+        """Starts a new scene as the active scene"""
+        scene._on_enter()
+        self.scenes.appendleft(scene)
+
+    def end_current_scene(self) -> Scene:
+        """Ends the currently active scene and returns the next in the stack"""
+        ending_scene = self.scenes.popleft()
+        ending_scene.reset()
+        active_scene = self.get_active_scene()
+        active_scene._on_enter()
+        return active_scene
 
 
-def get_active_scene() -> Scene:
-    """Returns the currently active scene"""
-    if not __scenes:
-        raise pygame.error("No active scene!")
-    return __scenes[0]
-
-
-def new_scene(scene: Scene):
-    """Starts a new scene as the active scene"""
-    if __scenes:
-        get_active_scene()._reset()
-    __scenes.appendleft(scene)
-    scene._on_enter()
-
-
-def end_current_scene() -> Scene:
-    """Ends the currently active scene and returns the next in the stack"""
-    ending_scene = __scenes.popleft()
-    ending_scene._reset()
-    active_scene = get_active_scene()
-    active_scene._on_enter()
-    return active_scene
+scene = __SceneController()
 
 
 __all__ = [
     "Scene",
-    "get_active_scene",
-    "new_scene",
-    "end_current_scene",
+    "scene",
 ]
