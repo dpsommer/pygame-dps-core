@@ -1,7 +1,7 @@
 import dataclasses
 import enum
 import pathlib
-from inspect import isclass, signature
+from inspect import isclass
 from types import UnionType
 from typing import Any, Protocol, Type, TypeVar, Union, get_args, get_origin
 
@@ -16,7 +16,7 @@ ConfigurableT_co = TypeVar("ConfigurableT_co", bound="Configurable")
 
 
 # XXX: this whole module uses a lot of reflection magic
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class Configurable:
     """Dataclass mixin to mark config objects as configurable from settings"""
 
@@ -25,31 +25,18 @@ class Configurable:
 
     @classmethod
     def from_config(cls: Type[ConfigurableT_co], data: dict) -> ConfigurableT_co:
-        cls_fields = {field for field in signature(cls).parameters}
-
         data = data or {}
-        defined_params, undefined_params = {}, {}
-        for k, v in data.items():
-            if k in cls_fields:
-                defined_params[k] = v
-            else:
-                undefined_params[k] = v
+        params = {}
 
-        o = cls(**defined_params)
+        for field in dataclasses.fields(cls):
+            if field.name in data:
+                value = data[field.name]
+                params[field.name] = cls._unmarshal_field(field.type, value)
 
-        for k, v in undefined_params.items():
-            setattr(o, k, v)
+        return cls(**params)
 
-        o._unmarshal_complex_types()
-        return o
-
-    def _unmarshal_complex_types(self) -> None:
-        for field in dataclasses.fields(self):
-            value = getattr(self, field.name)
-            unmarshalled_value = self._unmarshal_field(field.type, value)
-            setattr(self, field.name, unmarshalled_value)
-
-    def _unmarshal_field(self, type_, value) -> Any:
+    @staticmethod
+    def _unmarshal_field(type_, value) -> Any:
         if value is None:
             return None
 
@@ -60,28 +47,29 @@ class Configurable:
         elif get_origin(type_) in (Union, UnionType):
             for t in get_args(type_):
                 if isclass(t):
-                    o = self._unmarshal_class(t, value)
+                    o = Configurable._unmarshal_class(t, value)
                     if o is not None:
                         return o
         elif isclass(type_):
-            instance = self._unmarshal_class(type_, value)
+            instance = Configurable._unmarshal_class(type_, value)
             if instance is not None:
                 return instance
 
         # if the value is a list, expect the field type to be List[T]
         if isinstance(value, list) and hasattr(type_, "__args__"):
             type_ = type_.__args__[0]
-            return list(self._unmarshal_field(type_, o) for o in value)
+            return list(Configurable._unmarshal_field(type_, o) for o in value)
         # similarly, expect dict values to be typed Dict[K, T]
         elif isinstance(value, dict):
             if hasattr(type_, "__args__") and len(type_.__args__) == 2:
                 return {
-                    k: self._unmarshal_field(type_.__args__[1], v)
+                    k: Configurable._unmarshal_field(type_.__args__[1], v)
                     for k, v in value.items()
                 }
         return value
 
-    def _unmarshal_class(self, type_: type, value: Any) -> Any:
+    @staticmethod
+    def _unmarshal_class(type_: type, value: Any) -> Any:
         # decode logic for special case clases
         # TODO: validation for values + error handling
         if issubclass(type_, enum.Enum):

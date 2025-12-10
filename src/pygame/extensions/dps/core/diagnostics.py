@@ -6,7 +6,7 @@ import pygame
 from . import scenes, text
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class DiagnosticsSettings(text.TextOptions):
     margin: int = 2
 

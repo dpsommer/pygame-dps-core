@@ -4,7 +4,17 @@ from .game import Game, GameSettings
 from .io import Configurable, Loadable
 from .keys import KeyBinding, key
 from .scenes import Scene, end_current_scene, get_active_scene, new_scene
-from .text import TextOptions, draw_multiline_text, draw_text
+from .text import (
+    Align,
+    TextBox,
+    TextBoxSettings,
+    TextOptions,
+    TypewriterTextOptions,
+    VerticalAlign,
+    draw_multiline_text,
+    draw_text,
+    typewriter,
+)
 from .utils import coroutine, debounce, normalize_path_str
 
 __all__ = [
@@ -13,7 +23,12 @@ __all__ = [
     "Scene",
     "Diagnostics",
     "DiagnosticsSettings",
+    "TextBox",
+    "TextBoxSettings",
     "TextOptions",
+    "TypewriterTextOptions",
+    "Align",
+    "VerticalAlign",
     "Configurable",
     "Loadable",
     "KeyBinding",
@@ -22,6 +37,7 @@ __all__ = [
     "new_scene",
     "end_current_scene",
     "draw_multiline_text",
+    "typewriter",
     "draw_text",
     "coroutine",
     "debounce",
