@@ -4,6 +4,7 @@ from .game import Game, GameSettings
 from .io import Configurable, Loadable
 from .keys import KeyBinding, key
 from .scenes import Scene, end_current_scene, get_active_scene, new_scene
+from .sprites import GameSprite, SpriteOptions
 from .text import (
     Align,
     TextBox,
@@ -20,6 +21,8 @@ from .utils import coroutine, debounce, normalize_path_str
 __all__ = [
     "Game",
     "GameSettings",
+    "GameSprite",
+    "SpriteOptions",
     "Scene",
     "Diagnostics",
     "DiagnosticsSettings",
