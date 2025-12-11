@@ -5,9 +5,8 @@ from inspect import isclass
 from types import UnionType
 from typing import Any, Protocol, Type, TypeVar, Union, get_args, get_origin
 
-import yaml
-
 import pygame
+import yaml
 
 from . import _conf, utils
 from .logs import logger

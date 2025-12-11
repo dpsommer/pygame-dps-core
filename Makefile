@@ -5,10 +5,8 @@ TRUNK_INSTALLED=$(shell command -v trunk >/dev/null 2>&1 && echo 1 || echo 0)
 init: install trunk test
 
 install:
+	@pip install -U pip
 	@pip install -e . --group dev
-	@python -m build .
-	@pip install dist/*.whl
-	@rm -rf build dist
 ifeq ($(TRUNK_INSTALLED), 0)
 	@curl https://get.trunk.io -fsSL | bash -s -- -y
 endif
