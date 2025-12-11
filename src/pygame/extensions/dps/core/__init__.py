@@ -12,8 +12,8 @@ from .text import (
     TextOptions,
     TypewriterTextOptions,
     VerticalAlign,
-    draw_multiline_text,
-    draw_text,
+    multiline_text,
+    text_sprite,
     typewriter,
 )
 from .utils import coroutine, debounce, normalize_path_str
@@ -39,9 +39,9 @@ __all__ = [
     "get_active_scene",
     "new_scene",
     "end_current_scene",
-    "draw_multiline_text",
+    "multiline_text",
     "typewriter",
-    "draw_text",
+    "text_sprite",
     "coroutine",
     "debounce",
     "normalize_path_str",
