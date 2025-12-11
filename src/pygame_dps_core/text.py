@@ -165,10 +165,13 @@ def typewriter(
     text: str | Iterable[_PreparedText],
     opts: TypewriterTextOptions,
     dest: pygame.Rect,
-    group: pygame.sprite.LayeredDirty | None = None,
-) -> Generator[pygame.sprite.LayeredDirty, None, None]:
-    group = group or pygame.sprite.LayeredDirty()
-    text_layer = group.get_top_layer() + 1
+    group: pygame.sprite.LayeredUpdates | None = None,
+) -> Generator[pygame.sprite.LayeredUpdates, None, None]:
+    group = group or pygame.sprite.LayeredUpdates()
+    text_layer = 0
+
+    if len(group.sprites()) > 0:
+        text_layer = group.get_top_layer() + 1
 
     if isinstance(text, str):
         if opts.font.size(text)[0] > dest.w:
@@ -234,7 +237,7 @@ class TextBox(scenes.Scene):
         if self.settings.margins is not None:
             self.text_rect = self.settings.margins.apply(self.text_box.rect)
 
-        self.draw_group = pygame.sprite.LayeredDirty(self.text_box)  # type: ignore
+        self.draw_group = pygame.sprite.LayeredUpdates(self.text_box)  # type: ignore
         self._text_blocks = collections.deque()
         self.writer = None
 

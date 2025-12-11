@@ -24,7 +24,7 @@ class Diagnostics(scenes.Scene):
         self.rect = self.screen.get_rect()
         if self.settings.margins:
             self.rect = self.settings.margins.apply(self.rect)
-        self.draw_group = pygame.sprite.LayeredDirty()
+        self.draw_group = pygame.sprite.LayeredUpdates()
 
     def _on_enter(self):
         super()._on_enter()
