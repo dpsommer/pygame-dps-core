@@ -37,8 +37,8 @@ class Game(io.Loadable):
     def __init__(self, settings: GameSettings):
         screen_size = (settings.screen_width, settings.screen_height)
         flags = pygame.RESIZABLE | (settings.fullscreen and pygame.FULLSCREEN)
-        self.screen = pygame.display.set_mode(screen_size, flags=flags)
-        self.rect = self.screen.get_rect()
+        self._screen = pygame.display.set_mode(screen_size, flags=flags)
+        self.rect = self._screen.get_rect()
 
         pygame.display.set_caption(_conf.GAME.name)
         if settings.icon is not None:
@@ -111,13 +111,13 @@ class Game(io.Loadable):
         scale_factor = self.get_scale_factor()
         scaled = pygame.transform.scale_by(self.draw_surface, scale_factor)
         scaled_rect = scaled.get_rect()
-        scaled_rect.center = self.screen.get_rect().center
+        scaled_rect.center = self._screen.get_rect().center
 
-        self.screen.blit(scaled, scaled_rect)
+        self._screen.blit(scaled, scaled_rect)
         pygame.display.update(scaled_rect)
 
     def _rescale(self):
-        self.rect = self.screen.get_rect()
+        self.rect = self._screen.get_rect()
         # mark all sprites in the scene dirty so everything gets redrawn on resize
         scenes.get_active_scene().dirty_all_sprites()
         pygame.display.update()
@@ -126,12 +126,12 @@ class Game(io.Loadable):
         x, y = pos
         scale_factor = self.get_scale_factor()
         w, h = self.draw_surface.get_size()
-        x_offset = (self.screen.get_width() - (w * scale_factor)) / 2
-        y_offset = (self.screen.get_height() - (h * scale_factor)) / 2
+        x_offset = (self._screen.get_width() - (w * scale_factor)) / 2
+        y_offset = (self._screen.get_height() - (h * scale_factor)) / 2
         return ((x - x_offset) / scale_factor, (y - y_offset) / scale_factor)
 
     def get_scale_factor(self) -> float:
         game_width, game_height = self.draw_surface.get_size()
-        width_scale = self.screen.get_width() / game_width
-        height_scale = self.screen.get_height() / game_height
+        width_scale = self._screen.get_width() / game_width
+        height_scale = self._screen.get_height() / game_height
         return min(width_scale, height_scale)
