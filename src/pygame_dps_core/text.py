@@ -248,7 +248,7 @@ def typewriter(
     keepalive = int(opts.keepalive * opts.framerate)
     # special case - if keepalive is set to 0, continue to yield indefinitely
     wait_forever = keepalive == 0
-    while wait_forever or keepalive >= 0:
+    while wait_forever or keepalive > 0:
         yield group, True
         keepalive = max(keepalive - 1, 0)
 
