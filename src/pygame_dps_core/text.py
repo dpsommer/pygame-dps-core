@@ -47,7 +47,10 @@ class Margins(io.Configurable):
         Returns:
             pygame.Rect: the resulting Rect with updated position and size
         """
-        return rect.inflate(-(self.left + self.right), -(self.top + self.bottom))
+        topleft = (rect.left + self.left, rect.top + self.top)
+        margin_rect = rect.inflate(-(self.left + self.right), -(self.top + self.bottom))
+        margin_rect.topleft = topleft
+        return margin_rect
 
 
 @dataclasses.dataclass(frozen=True)
