@@ -90,6 +90,7 @@ def end_current_scene() -> Scene:
     ending_scene = __scenes.popleft()
     ending_scene.reset()
     active_scene = get_active_scene()
+    # XXX: should _on_enter only run when the Scene is first loaded?
     active_scene._on_enter()
     return active_scene
 

@@ -4,7 +4,14 @@ from .game import Game, GameSettings
 from .io import Configurable, Loadable
 from .keys import KeyBinding, key
 from .scenes import Overlay, Scene, end_current_scene, get_active_scene, new_scene
-from .sprites import GameSprite, SpriteOptions
+from .sprites import (
+    Animation,
+    AnimationOptions,
+    GameSprite,
+    SpriteOptions,
+    SpriteSheet,
+    SpriteSheetSettings,
+)
 from .text import (
     Align,
     Margins,
@@ -22,8 +29,12 @@ from .utils import coroutine, debounce, normalize_path_str
 __all__ = [
     "Game",
     "GameSettings",
+    "Animation",
+    "AnimationOptions",
     "GameSprite",
     "SpriteOptions",
+    "SpriteSheet",
+    "SpriteSheetSettings",
     "Scene",
     "Overlay",
     "Diagnostics",
