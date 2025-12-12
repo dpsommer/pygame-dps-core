@@ -3,7 +3,7 @@ from .diagnostics import Diagnostics, DiagnosticsSettings
 from .game import Game, GameSettings
 from .io import Configurable, Loadable
 from .keys import KeyBinding, key
-from .scenes import Scene, end_current_scene, get_active_scene, new_scene
+from .scenes import Overlay, Scene, end_current_scene, get_active_scene, new_scene
 from .sprites import GameSprite, SpriteOptions
 from .text import (
     Align,
@@ -25,6 +25,7 @@ __all__ = [
     "GameSprite",
     "SpriteOptions",
     "Scene",
+    "Overlay",
     "Diagnostics",
     "DiagnosticsSettings",
     "Margins",

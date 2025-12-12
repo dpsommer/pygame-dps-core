@@ -48,6 +48,27 @@ class Scene(io.Loadable, abc.ABC):
         self.dirty_all_sprites()
 
 
+class Overlay(Scene):
+    def __init__(self, screen: pygame.Surface):
+        super().__init__(screen)
+        self._active_scene: Scene
+
+    def _on_enter(self):
+        self._active_scene = get_active_scene()
+
+    def handle_event(self, event: pygame.event.Event):
+        self._active_scene.handle_event(event)
+
+    def update(self, dt: float):
+        self._active_scene.update(dt)
+
+    def draw(self) -> List[pygame.Rect]:
+        return self._active_scene.draw()
+
+    def dirty_all_sprites(self):
+        pass
+
+
 __scenes: deque[Scene] = deque()
 
 
