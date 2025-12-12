@@ -1,6 +1,6 @@
 import collections
 import functools
-from typing import Dict, List
+from typing import Dict, List, Type
 
 import pygame
 
@@ -18,6 +18,10 @@ class KeyBinding(io.Configurable):
         mod_keys = [pygame.key.key_code(k) for k in mods or []]
         self.mods = functools.reduce(lambda x, k: x & k, mod_keys, 0)
         self.toggle = toggle
+
+    @classmethod
+    def from_config(cls: Type["KeyBinding"], data: dict) -> "KeyBinding":
+        return cls(**data)
 
     def is_pressed(self) -> bool:
         # toggle takes priority even when the window loses focus
