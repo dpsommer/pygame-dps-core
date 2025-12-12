@@ -201,10 +201,7 @@ def typewriter(
         text_layer = group.get_top_layer() + 1
 
     if isinstance(text, str):
-        if opts.font.size(text)[0] > dest.w:
-            prepared_texts = _prepare_multiline(text, opts, dest)
-        else:
-            prepared_texts = collections.deque((_PreparedText(text, dest),))
+        prepared_texts = _prepare_multiline(text, opts, dest)
     else:
         prepared_texts = collections.deque(text)
 
@@ -249,9 +246,11 @@ def typewriter(
     group.add(*text_sprites)
 
     keepalive = int(opts.keepalive * opts.framerate)
-    while keepalive > 0:
+    # special case - if keepalive is set to 0, continue to yield indefinitely
+    wait_forever = keepalive == 0
+    while wait_forever or keepalive >= 0:
         yield group, True
-        keepalive -= 1
+        keepalive = max(keepalive - 1, 0)
 
 
 class TextBox(scenes.Overlay):
@@ -261,7 +260,6 @@ class TextBox(scenes.Overlay):
     def __init__(self, settings: TextBoxSettings, screen: pygame.Surface):
         super().__init__(screen)
         self.settings = settings
-        self.advance_text = settings.advance_text
         self._auto_scroll_timer = int(settings.auto_scroll * settings.framerate)
         self.auto_scroll = self._auto_scroll_timer > 0
 
@@ -272,7 +270,6 @@ class TextBox(scenes.Overlay):
             self.text_rect = self.settings.margins.apply(self.text_box.rect)
 
         # use a LayeredDirty group here so we can set the indicator visibility
-        # since this is an overlay, we need to dirty all sprites each frame
         self.draw_group = pygame.sprite.LayeredDirty(self.text_box)  # type: ignore
         if settings.indicator is not None:
             self.indicator = sprites.GameSprite(opts=settings.indicator)
@@ -280,11 +277,8 @@ class TextBox(scenes.Overlay):
             self.draw_group.add(self.indicator)
             self.indicator.visible = False
 
-        self._text_blocks = collections.deque()
+        self._text_windows = collections.deque()
         self.writer = None
-
-    def _on_enter(self):
-        super()._on_enter()
 
     def add_text(self, text: str):
         if not text:
@@ -298,62 +292,61 @@ class TextBox(scenes.Overlay):
         lines_per_block = self.text_rect.h // self.settings.font.get_linesize()
         blocks = itertools.batched(lines, lines_per_block)
         for block in blocks:
-            self._text_blocks.append(
+            self._text_windows.append(
                 _prepare_multiline(block, self.settings, self.text_rect)
             )
 
         if self.writer is None:
-            self._new_writer(self._text_blocks.popleft())
+            self._new_writer(self._text_windows.popleft())
 
     def _new_writer(self, text: str):
         self.writer = typewriter(text, self.settings, self.text_rect, self.draw_group)
 
-    def handle_event(self, event: pygame.event.Event):
-        super().handle_event(event)
-
     def update(self, dt: float):
-        super().update(dt)
+        if self.writer is None:
+            return
 
-        finished_typing = False
+        try:
+            self.draw_group, finished_typing = next(self.writer)
 
-        if self.writer is not None:
-            try:
-                self.draw_group, finished_typing = next(self.writer)
-                if finished_typing and self.indicator is not None:
-                    # TODO: indicator animation
-                    self.indicator.visible = True
-            except StopIteration:
-                self.reset()
-
-        if finished_typing:
-            advance_text = self.auto_scroll and self._auto_scroll_timer <= 0
-            if self.advance_text is not None and self.advance_text.is_pressed():
-                advance_text = True
-
-            if advance_text:
-                if not self._text_blocks:
-                    scenes.end_current_scene()
-                    return
-
-                text_layer = self.draw_group.get_top_layer()
-                self.draw_group.remove_sprites_of_layer(text_layer)
-
-                self._new_writer(self._text_blocks.popleft())
-                self._auto_scroll_timer = int(
-                    self.settings.auto_scroll * self.settings.framerate
-                )
+            if finished_typing:
+                self._auto_scroll_timer -= 1
 
                 if self.indicator is not None:
-                    self.indicator.visible = False
+                    # TODO: indicator animation
+                    self.indicator.visible = True
+                    self.indicator.dirty = 1
 
-            self._auto_scroll_timer -= 1
+                if self._should_advance():
+                    self._advance()
+            else:
+                # if we're still typing, the top sprite will be the
+                # incomplete line - dirty it on each tick
+                self.draw_group.get_top_sprite().dirty = 1
+        except StopIteration:
+            self._advance()
 
         self.draw_group.update()
 
+    def _should_advance(self) -> bool:
+        advance_text = self.auto_scroll and self._auto_scroll_timer <= 0
+        advance_text_key = self.settings.advance_text
+        if advance_text_key is not None and advance_text_key.is_pressed():
+            advance_text = True
+        return advance_text
+
+    def _advance(self):
+        if not self._text_windows:
+            scenes.end_current_scene()
+            return
+        self._next_text_window()
+
+    def _next_text_window(self):
+        self.reset()
+        self._new_writer(self._text_windows.popleft())
+
     def draw(self) -> List[pygame.Rect]:
-        self.dirty_all_sprites()
-        rects = super().draw()
-        return rects + self.draw_group.draw(self.screen)
+        return self.draw_group.draw(self.screen)
 
     def dirty_all_sprites(self):
         for sprite in self.draw_group:
@@ -361,11 +354,15 @@ class TextBox(scenes.Overlay):
 
     def reset(self):
         super().reset()
+        self.text_box.dirty = 1
+        # XXX: is this faster than removing the text layer?
         self.draw_group.empty()
+        self.draw_group.add(self.text_box, self.indicator)
+
         if self.indicator is not None:
             self.indicator.visible = False
+
         self._auto_scroll_timer = int(
             self.settings.auto_scroll * self.settings.framerate
         )
-        self.draw_group.add(self.text_box, self.indicator)
         self.writer = None
