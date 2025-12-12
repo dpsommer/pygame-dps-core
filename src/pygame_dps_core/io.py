@@ -76,6 +76,10 @@ class Configurable:
         elif issubclass(type_, Configurable):
             return type_.from_config(value)
         elif type_ is pygame.font.Font:
+            if isinstance(value, str):
+                filename, size = value.replace(" ", "").split(",")
+                file = utils.normalize_path_str(_conf.GAME.resource_dir / filename)
+                return pygame.font.Font(file, int(size))
             return pygame.font.SysFont(**value)
         elif type_ is pygame.Surface:
             img_path = utils.normalize_path_str(_conf.GAME.resource_dir / value)
