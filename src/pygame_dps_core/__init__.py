@@ -24,6 +24,7 @@ from .text import (
     text_sprite,
     typewriter,
 )
+from .ui import Button, ButtonOptions, Menu
 from .utils import coroutine, debounce, normalize_path_str
 
 __all__ = [
@@ -35,6 +36,9 @@ __all__ = [
     "SpriteOptions",
     "SpriteSheet",
     "SpriteSheetSettings",
+    "Button",
+    "ButtonOptions",
+    "Menu",
     "Scene",
     "Overlay",
     "Diagnostics",
