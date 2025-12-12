@@ -3,7 +3,7 @@ import dataclasses
 import enum
 import functools
 import itertools
-from typing import Generator, Iterable, List, Type
+from typing import Generator, Iterable, List, Tuple, Type
 
 import pygame
 
@@ -36,6 +36,17 @@ class Margins:
     bottom: int = 0
 
     def apply(self, rect: pygame.Rect) -> pygame.Rect:
+        """Returns a copy of the given Rect with margins applied
+
+        Rect position is moved by (left, top) and size is shrunk by
+        ((left + right), (top + bottom)).
+
+        Args:
+            rect (pygame.Rect): Rect to apply margins to
+
+        Returns:
+            pygame.Rect: the resulting Rect with updated position and size
+        """
         margin_rect = rect.move(self.left, self.top)
         margin_rect.inflate_ip(-(self.left + self.right), -(self.top + self.bottom))
         return margin_rect
@@ -56,17 +67,18 @@ class TextOptions(io.Configurable):
 class TypewriterTextOptions(TextOptions):
     text_speed: int = const.DEFAULT_TEXT_SPEED
     framerate: int = const.DEFAULT_FRAMERATE
-    keepalive: int = const.DEFAULT_TYPEWRITER_KEEPALIVE
+    keepalive: float = const.DEFAULT_TYPEWRITER_KEEPALIVE
 
 
 @dataclasses.dataclass(frozen=True)
 class TextBoxSettings(TypewriterTextOptions):
-    auto_scroll: int = 0
+    auto_scroll: float = 0
     advance_text: keys.KeyBinding | None = None
     margins: Margins = dataclasses.field(default_factory=Margins)
-    sprite_opts: sprites.SpriteOptions = dataclasses.field(
+    box_sprite: sprites.SpriteOptions = dataclasses.field(
         default_factory=sprites.SpriteOptions
     )
+    indicator: sprites.SpriteOptions | None = None
 
 
 # TODO: wrap this in a controller so that cache settings are configurable
@@ -166,7 +178,7 @@ def typewriter(
     opts: TypewriterTextOptions,
     dest: pygame.Rect,
     group: pygame.sprite.LayeredUpdates | None = None,
-) -> Generator[pygame.sprite.LayeredUpdates, None, None]:
+) -> Generator[Tuple[pygame.sprite.LayeredUpdates, bool], None, None]:
     group = group or pygame.sprite.LayeredUpdates()
     text_layer = 0
 
@@ -208,18 +220,19 @@ def typewriter(
             if step_frames == 0:
                 line += current.line[char_idx]
                 char_idx += 1
+                # XXX: should the multiplier here be configurable?
                 step_frames = opts.framerate // (text_speed * 6)
             step_frames -= 1
 
             # write the typing line to its own layer so we can replace it
             tmp_group.add(text_sprite(line, opts, current.dest, text_layer + 1))
-            yield tmp_group
+            yield tmp_group, False
 
     group.add(*text_sprites)
 
-    keepalive = opts.keepalive * opts.framerate
+    keepalive = int(opts.keepalive * opts.framerate)
     while keepalive > 0:
-        yield group
+        yield group, True
         keepalive -= 1
 
 
@@ -231,13 +244,22 @@ class TextBox(scenes.Scene):
         super().__init__(screen)
         self.settings = settings
         self.advance_text = settings.advance_text
+        self._auto_scroll_timer = int(settings.auto_scroll * settings.framerate)
+        self.auto_scroll = self._auto_scroll_timer > 0
 
-        self.text_box = sprites.GameSprite(opts=settings.sprite_opts)
+        self.text_box = sprites.GameSprite(opts=settings.box_sprite)
+        self.indicator = None
         self.text_rect = self.text_box.rect
         if self.settings.margins is not None:
             self.text_rect = self.settings.margins.apply(self.text_box.rect)
 
-        self.draw_group = pygame.sprite.LayeredUpdates(self.text_box)  # type: ignore
+        self.draw_group = pygame.sprite.LayeredDirty(self.text_box)  # type: ignore
+        if settings.indicator is not None:
+            self.indicator = sprites.GameSprite(opts=settings.indicator)
+            self.indicator.layer = self.draw_group.get_top_layer() + 1
+            self.draw_group.add(self.indicator)
+            self.indicator.visible = False
+
         self._text_blocks = collections.deque()
         self.writer = None
 
@@ -255,16 +277,26 @@ class TextBox(scenes.Scene):
         pass
 
     def update(self, dt: float):
-        if self.settings.auto_scroll == 0:
-            if self.advance_text is not None and self.advance_text.is_pressed():
-                if not self._text_blocks:
-                    scenes.end_current_scene()
-                self._new_writer(self._text_blocks.popleft())
+        advance_text = self.auto_scroll and self._auto_scroll_timer == 0
+        if self.advance_text is not None and self.advance_text.is_pressed():
+            advance_text = True
+
+        if advance_text:
+            if not self._text_blocks:
+                scenes.end_current_scene()
+            self._new_writer(self._text_blocks.popleft())
+
+            if self.indicator is not None:
+                self.indicator.visible = False
 
         if self.writer is not None:
             try:
-                self.draw_group = next(self.writer)
+                self.draw_group, finished_typing = next(self.writer)
+                if finished_typing and self.indicator is not None:
+                    self.indicator.visible = True
             except StopIteration:
+                text_layer = self.draw_group.get_top_layer()
+                self.draw_group.remove_sprites_of_layer(text_layer)
                 self.writer = None
 
         self.draw_group.update()

@@ -7,6 +7,7 @@ from .scenes import Scene, end_current_scene, get_active_scene, new_scene
 from .sprites import GameSprite, SpriteOptions
 from .text import (
     Align,
+    Margins,
     TextBox,
     TextBoxSettings,
     TextOptions,
@@ -26,6 +27,7 @@ __all__ = [
     "Scene",
     "Diagnostics",
     "DiagnosticsSettings",
+    "Margins",
     "TextBox",
     "TextBoxSettings",
     "TextOptions",
