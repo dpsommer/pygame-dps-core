@@ -3,7 +3,7 @@ import dataclasses
 import enum
 import functools
 import itertools
-from typing import Generator, Iterable, List, Tuple, Type
+from typing import Generator, Iterable, List, Sequence, Tuple, Type
 
 import pygame
 
@@ -28,8 +28,8 @@ class _PreparedText:
     dest: types.Coordinate | pygame.Rect
 
 
-@dataclasses.dataclass
-class Margins:
+@dataclasses.dataclass(frozen=True)
+class Margins(io.Configurable):
     top: int = 0
     left: int = 0
     right: int = 0
@@ -47,9 +47,7 @@ class Margins:
         Returns:
             pygame.Rect: the resulting Rect with updated position and size
         """
-        margin_rect = rect.move(self.left, self.top)
-        margin_rect.inflate_ip(-(self.left + self.right), -(self.top + self.bottom))
-        return margin_rect
+        return rect.inflate(-(self.left + self.right), -(self.top + self.bottom))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -68,6 +66,7 @@ class TypewriterTextOptions(TextOptions):
     text_speed: int = const.DEFAULT_TEXT_SPEED
     framerate: int = const.DEFAULT_FRAMERATE
     keepalive: float = const.DEFAULT_TYPEWRITER_KEEPALIVE
+    skip: keys.KeyBinding | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -82,16 +81,30 @@ class TextBoxSettings(TypewriterTextOptions):
 
 
 # TODO: wrap this in a controller so that cache settings are configurable
+# XXX: lru_cache requires all args/kwargs to be Hashable,
+# so require specific args rather than a TextOptions object
 @functools.lru_cache()
-def create_text_surface(text: str, opts: TextOptions) -> pygame.Surface:
+def create_text_surface(
+    text: str,
+    font: pygame.font.Font,
+    antialias: bool,
+    color: Tuple[int, int, int, int],
+    bg_color: Tuple[int, int, int, int] | None,
+) -> pygame.Surface:
     """Renders and caches text surfaces to be drawn to the screen"""
-    return opts.font.render(text, opts.antialias, opts.color, opts.bg_color)
+    return font.render(text, antialias, color, bg_color)
 
 
 def text_sprite(
     text: str, opts: TextOptions, dest: types.Coordinate | pygame.Rect, layer: int = 0
 ) -> sprites.GameSprite:
-    img = create_text_surface(text, opts)
+    # XXX: ColorValue isn't a Hashable type, so use
+    # Color.normalize() to create an RGBA tuple
+    clr = pygame.Color(opts.color).normalize()
+    bg_clr = (
+        pygame.Color(opts.bg_color).normalize() if opts.bg_color is not None else None
+    )
+    img = create_text_surface(text, opts.font, opts.antialias, clr, bg_clr)
     text_w, text_h = img.get_size()
 
     if isinstance(dest, pygame.Rect):
@@ -125,7 +138,7 @@ def multiline_text(
 
 
 def _prepare_multiline(
-    text: str,
+    text: str | Sequence[str],
     opts: TextOptions,
     rect: pygame.Rect,
 ) -> collections.deque[_PreparedText]:
@@ -133,10 +146,12 @@ def _prepare_multiline(
     line_height = opts.font.get_linesize()
     prepared_texts: collections.deque[_PreparedText] = collections.deque()
 
-    if opts.justify:
-        lines = _split_and_justify(text, opts.font, rect)
-    else:
-        lines = text.splitlines()
+    lines = text
+    if isinstance(text, str):
+        if opts.justify:
+            lines = _split_and_justify(text, opts.font, rect)
+        else:
+            lines = text.splitlines()
 
     y_margin = 0
     if opts.vertical_align is VerticalAlign.CENTER:
@@ -145,7 +160,7 @@ def _prepare_multiline(
         y_margin = h - (len(lines) * line_height)
 
     for i, line in enumerate(lines):
-        y = (i * line_height) + y_margin
+        y = rect.top + (i * line_height) + y_margin
         line_rect = pygame.Rect(rect.left, y, w, line_height)
         prepared_texts.append(_PreparedText(line=line, dest=line_rect))
 
@@ -208,6 +223,9 @@ def typewriter(
         line = ""
 
         while prepared_texts or len(line) < len(current.line):
+            if opts.skip and opts.skip.is_pressed():
+                break
+
             # remove the currently typing line from the group
             tmp_group.remove_sprites_of_layer(text_layer + 1)
 
@@ -236,7 +254,7 @@ def typewriter(
         keepalive -= 1
 
 
-class TextBox(scenes.Scene):
+class TextBox(scenes.Overlay):
 
     settings_type: Type[TextBoxSettings] = TextBoxSettings
 
@@ -253,6 +271,8 @@ class TextBox(scenes.Scene):
         if self.settings.margins is not None:
             self.text_rect = self.settings.margins.apply(self.text_box.rect)
 
+        # use a LayeredDirty group here so we can set the indicator visibility
+        # since this is an overlay, we need to dirty all sprites each frame
         self.draw_group = pygame.sprite.LayeredDirty(self.text_box)  # type: ignore
         if settings.indicator is not None:
             self.indicator = sprites.GameSprite(opts=settings.indicator)
@@ -263,47 +283,89 @@ class TextBox(scenes.Scene):
         self._text_blocks = collections.deque()
         self.writer = None
 
+    def _on_enter(self):
+        super()._on_enter()
+
     def add_text(self, text: str):
-        prep = _prepare_multiline(text, self.settings, self.text_rect)
+        if not text:
+            return
+
+        if self.settings.justify:
+            lines = _split_and_justify(text, self.settings.font, self.text_rect)
+        else:
+            lines = text.splitlines()
+
         lines_per_block = self.text_rect.h // self.settings.font.get_linesize()
-        self._text_blocks.extend(itertools.batched(prep, lines_per_block))
+        blocks = itertools.batched(lines, lines_per_block)
+        for block in blocks:
+            self._text_blocks.append(
+                _prepare_multiline(block, self.settings, self.text_rect)
+            )
 
-    def _new_writer(self, text: str):
-        self.writer = typewriter(
-            text, self.settings, self.text_box.rect, self.draw_group
-        )
-
-    def handle_event(self, event: pygame.event.Event):
-        pass
-
-    def update(self, dt: float):
-        advance_text = self.auto_scroll and self._auto_scroll_timer == 0
-        if self.advance_text is not None and self.advance_text.is_pressed():
-            advance_text = True
-
-        if advance_text:
-            if not self._text_blocks:
-                scenes.end_current_scene()
+        if self.writer is None:
             self._new_writer(self._text_blocks.popleft())
 
-            if self.indicator is not None:
-                self.indicator.visible = False
+    def _new_writer(self, text: str):
+        self.writer = typewriter(text, self.settings, self.text_rect, self.draw_group)
+
+    def handle_event(self, event: pygame.event.Event):
+        super().handle_event(event)
+
+    def update(self, dt: float):
+        super().update(dt)
+
+        finished_typing = False
 
         if self.writer is not None:
             try:
                 self.draw_group, finished_typing = next(self.writer)
                 if finished_typing and self.indicator is not None:
+                    # TODO: indicator animation
                     self.indicator.visible = True
             except StopIteration:
+                self.reset()
+
+        if finished_typing:
+            advance_text = self.auto_scroll and self._auto_scroll_timer <= 0
+            if self.advance_text is not None and self.advance_text.is_pressed():
+                advance_text = True
+
+            if advance_text:
+                if not self._text_blocks:
+                    scenes.end_current_scene()
+                    return
+
                 text_layer = self.draw_group.get_top_layer()
                 self.draw_group.remove_sprites_of_layer(text_layer)
-                self.writer = None
+
+                self._new_writer(self._text_blocks.popleft())
+                self._auto_scroll_timer = int(
+                    self.settings.auto_scroll * self.settings.framerate
+                )
+
+                if self.indicator is not None:
+                    self.indicator.visible = False
+
+            self._auto_scroll_timer -= 1
 
         self.draw_group.update()
 
     def draw(self) -> List[pygame.Rect]:
-        return self.draw_group.draw(self.screen)
+        self.dirty_all_sprites()
+        rects = super().draw()
+        return rects + self.draw_group.draw(self.screen)
 
     def dirty_all_sprites(self):
         for sprite in self.draw_group:
             sprite.dirty = 1
+
+    def reset(self):
+        super().reset()
+        self.draw_group.empty()
+        if self.indicator is not None:
+            self.indicator.visible = False
+        self._auto_scroll_timer = int(
+            self.settings.auto_scroll * self.settings.framerate
+        )
+        self.draw_group.add(self.text_box, self.indicator)
+        self.writer = None
