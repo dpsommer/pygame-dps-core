@@ -2,12 +2,11 @@ import dataclasses
 import os
 import pathlib
 import platform
-import tempfile
 from typing import Any
 
 import pygame
 
-from . import logs, utils
+from . import utils
 
 _DEFAULT_GAME_NAME = "My Game"
 
@@ -113,6 +112,4 @@ def init(resource_dir: str | pathlib.PurePath, game_name: str = _DEFAULT_GAME_NA
     GAME.config_dir = _get_local_dir(__CONFIG, game_dir_name)
     data_dir = _get_local_dir(__DATA, game_dir_name)
     GAME.data_dir = data_dir
-    log_dir = data_dir or pathlib.PurePath(tempfile.gettempdir())
-    logs.setup_game_logger(log_dir / "game.log", game_dir_name)
     GAME.initialized = True

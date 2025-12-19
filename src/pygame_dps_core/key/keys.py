@@ -4,8 +4,8 @@ from typing import Dict, List, Type
 
 import pygame
 
-from . import io
-from .logs import logger
+from .. import io
+from ..logs import logger
 
 
 class KeyBinding(io.Configurable):

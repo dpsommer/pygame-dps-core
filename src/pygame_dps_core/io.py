@@ -14,7 +14,6 @@ from .logs import logger
 ConfigurableT_co = TypeVar("ConfigurableT_co", bound="Configurable")
 
 
-# XXX: this whole module uses a lot of reflection magic
 @dataclasses.dataclass(frozen=True)
 class Configurable:
     """Dataclass mixin to mark config objects as configurable from settings"""

@@ -1,86 +1,21 @@
 import collections
 import dataclasses
-import enum
 import functools
 import itertools
 from typing import Generator, Iterable, List, Sequence, Tuple, Type
 
 import pygame
 
-from . import const, io, keys, scenes, sprites, types
+from pygame_dps_core import const, types
+from pygame_dps_core.flow import scenes
 
-
-class Align(enum.Enum):
-    LEFT = "left"
-    CENTER = "center"
-    RIGHT = "right"
-
-
-class VerticalAlign(enum.Enum):
-    TOP = "top"
-    CENTER = "center"
-    BOTTOM = "bottom"
+from . import settings, sprite
 
 
 @dataclasses.dataclass
 class _PreparedText:
     line: str
     dest: types.Coordinate | pygame.Rect
-
-
-@dataclasses.dataclass(frozen=True)
-class Margins(io.Configurable):
-    top: int = 0
-    left: int = 0
-    right: int = 0
-    bottom: int = 0
-
-    def apply(self, rect: pygame.Rect) -> pygame.Rect:
-        """Returns a copy of the given Rect with margins applied
-
-        Rect position is moved by (left, top) and size is shrunk by
-        ((left + right), (top + bottom)).
-
-        Args:
-            rect (pygame.Rect): Rect to apply margins to
-
-        Returns:
-            pygame.Rect: the resulting Rect with updated position and size
-        """
-        topleft = (rect.left + self.left, rect.top + self.top)
-        margin_rect = rect.inflate(-(self.left + self.right), -(self.top + self.bottom))
-        margin_rect.topleft = topleft
-        return margin_rect
-
-
-@dataclasses.dataclass(frozen=True)
-class TextOptions(io.Configurable):
-    font: pygame.font.Font
-    color: types.ColorValue
-    bg_color: types.ColorValue | None = None
-    antialias: bool = True
-    justify: bool = False
-    align: Align = dataclasses.field(default=Align.LEFT)
-    vertical_align: VerticalAlign = dataclasses.field(default=VerticalAlign.TOP)
-
-
-@dataclasses.dataclass(frozen=True)
-class TypewriterTextOptions(TextOptions):
-    text_speed: int = const.DEFAULT_TEXT_SPEED
-    framerate: int = const.DEFAULT_FRAMERATE
-    keepalive: float = const.DEFAULT_TYPEWRITER_KEEPALIVE
-    skip: keys.KeyBinding | None = None
-
-
-@dataclasses.dataclass(frozen=True)
-class TextBoxSettings(TypewriterTextOptions):
-    auto_scroll: float = 0
-    advance_text: keys.KeyBinding | None = None
-    margins: Margins = dataclasses.field(default_factory=Margins)
-    box_sprite: sprites.SpriteOptions = dataclasses.field(
-        default_factory=sprites.SpriteOptions
-    )
-    indicator: sprites.SpriteOptions | None = None
 
 
 # TODO: wrap this in a controller so that cache settings are configurable
@@ -99,8 +34,11 @@ def create_text_surface(
 
 
 def text_sprite(
-    text: str, opts: TextOptions, dest: types.Coordinate | pygame.Rect, layer: int = 0
-) -> sprites.GameSprite:
+    text: str,
+    opts: settings.TextOptions,
+    dest: types.Coordinate | pygame.Rect,
+    layer: int = 0,
+) -> sprite.GameSprite:
     # XXX: ColorValue isn't a Hashable type, so use
     # Color.normalize() to create an RGBA tuple
     clr = pygame.Color(opts.color).normalize()
@@ -113,36 +51,36 @@ def text_sprite(
     if isinstance(dest, pygame.Rect):
         dx, dy = dest.topleft
 
-        if opts.align is Align.CENTER:
+        if opts.align is types.HorizontalAlignment.CENTER:
             dx = dest.centerx - (text_w / 2)
-        elif opts.align is Align.RIGHT:
+        elif opts.align is types.HorizontalAlignment.RIGHT:
             dx = dest.right - text_w
 
-        if opts.vertical_align is VerticalAlign.CENTER:
+        if opts.vertical_align is types.VerticalAlignment.CENTER:
             dy = dest.centery - (text_h / 2)
-        elif opts.vertical_align is VerticalAlign.BOTTOM:
+        elif opts.vertical_align is types.VerticalAlignment.BOTTOM:
             dy = dest.bottom - text_h
 
         dest = (dx, dy)
 
-    return sprites.GameSprite(
-        opts=sprites.SpriteOptions(dest, text_w, text_h, img, layer)
+    return sprite.GameSprite(
+        opts=settings.SpriteOptions(dest, text_w, text_h, img, layer)
     )
 
 
 def multiline_text(
     text: str,
-    opts: TextOptions,
+    opts: settings.TextOptions,
     dest: pygame.Rect,
     layer: int = 0,
-) -> List[sprites.GameSprite]:
+) -> List[sprite.GameSprite]:
     prepared_texts = _prepare_multiline(text, opts, dest)
     return [text_sprite(prep.line, opts, prep.dest, layer) for prep in prepared_texts]
 
 
 def _prepare_multiline(
     text: str | Sequence[str],
-    opts: TextOptions,
+    opts: settings.TextOptions,
     rect: pygame.Rect,
 ) -> collections.deque[_PreparedText]:
     w, h = rect.size
@@ -157,9 +95,9 @@ def _prepare_multiline(
             lines = text.splitlines()
 
     y_margin = 0
-    if opts.vertical_align is VerticalAlign.CENTER:
+    if opts.vertical_align is types.VerticalAlignment.CENTER:
         y_margin = (h - (len(lines) * line_height)) // 2
-    elif opts.vertical_align is VerticalAlign.BOTTOM:
+    elif opts.vertical_align is types.VerticalAlignment.BOTTOM:
         y_margin = h - (len(lines) * line_height)
 
     for i, line in enumerate(lines):
@@ -193,7 +131,7 @@ def _split_and_justify(
 
 def typewriter(
     text: str | Iterable[_PreparedText],
-    opts: TypewriterTextOptions,
+    opts: settings.TypewriterTextOptions,
     dest: pygame.Rect,
     group: pygame.sprite.LayeredUpdates | None = None,
 ) -> Generator[Tuple[pygame.sprite.LayeredUpdates, bool], None, None]:
@@ -258,24 +196,24 @@ def typewriter(
 
 class TextBox(scenes.Overlay):
 
-    settings_type: Type[TextBoxSettings] = TextBoxSettings
+    settings_type: Type[settings.TextBoxSettings] = settings.TextBoxSettings
 
-    def __init__(self, settings: TextBoxSettings, screen: pygame.Surface):
+    def __init__(self, settings: settings.TextBoxSettings, screen: pygame.Surface):
         super().__init__(screen)
         self.settings = settings
         self._auto_scroll_timer = int(settings.auto_scroll * settings.framerate)
         self.auto_scroll = self._auto_scroll_timer > 0
 
-        self.text_box = sprites.GameSprite(opts=settings.box_sprite)
+        self.text_box = sprite.GameSprite(opts=settings.box_sprite)
         self.indicator = None
         self.text_rect = self.text_box.rect
         if self.settings.margins is not None:
             self.text_rect = self.settings.margins.apply(self.text_box.rect)
 
         # use a LayeredDirty group here so we can set the indicator visibility
-        self.draw_group = pygame.sprite.LayeredDirty(self.text_box)  # type: ignore
+        self.draw_group = pygame.sprite.LayeredDirty[sprite.GameSprite](self.text_box)  # type: ignore
         if settings.indicator is not None:
-            self.indicator = sprites.GameSprite(opts=settings.indicator)
+            self.indicator = sprite.GameSprite(opts=settings.indicator)
             self.indicator.layer = self.draw_group.get_top_layer() + 1
             self.draw_group.add(self.indicator)
             self.indicator.visible = False
@@ -353,16 +291,18 @@ class TextBox(scenes.Overlay):
 
     def dirty_all_sprites(self):
         for sprite in self.draw_group:
-            sprite.dirty = 1
+            if sprite.visible:
+                sprite.dirty = 1
 
     def reset(self):
         super().reset()
         self.text_box.dirty = 1
         # XXX: is this faster than removing the text layer?
         self.draw_group.empty()
-        self.draw_group.add(self.text_box, self.indicator)
+        self.draw_group.add(self.text_box)
 
         if self.indicator is not None:
+            self.draw_group.add(self.indicator)
             self.indicator.visible = False
 
         self._auto_scroll_timer = int(

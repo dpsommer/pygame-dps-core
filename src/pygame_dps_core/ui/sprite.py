@@ -1,38 +1,23 @@
-import dataclasses
 from typing import Dict, List
 
 import pygame
 
-from . import io, types
+from pygame_dps_core import core, io, types
+
+from . import settings
 
 
-@dataclasses.dataclass(frozen=True)
-class SpriteOptions(io.Configurable):
-    topleft: types.Coordinate = (0, 0)
-    width: float = 0
-    height: float = 0
-    image: pygame.Surface | None = None
-    layer: int = 0
+class GameSprite(core.Node, pygame.sprite.WeakDirtySprite):
 
+    draw: core.Signal
+    visibility_changed: core.Signal
 
-@dataclasses.dataclass(frozen=True)
-class AnimationOptions(io.Configurable):
-    name: str
-    repeat: int
-
-
-@dataclasses.dataclass(frozen=True)
-class SpriteSheetSettings(io.Configurable):
-    sprite_sheet: pygame.Surface
-    sprite_width: int
-    sprite_height: int
-    animation_opts: List[AnimationOptions]
-
-
-class GameSprite(pygame.sprite.WeakDirtySprite):
-
-    def __init__(self, opts: SpriteOptions):
+    def __init__(self, opts: settings.SpriteOptions, screen: pygame.Surface):
         super().__init__()
+        self.screen = screen
+
+        self._pending_update = False
+
         self._layer = opts.layer
         self.origin = opts.topleft
         image_size = (opts.width, opts.height)
@@ -44,18 +29,37 @@ class GameSprite(pygame.sprite.WeakDirtySprite):
         self.rect = self.image.get_rect()
         self.rect.update(self.origin, self.source_rect.size)
 
-        # store last x, y position for use in collision detection
-        self.last_pos: types.Coordinate = self.rect.topleft
+    def _set_visible(self, val: int):
+        super()._set_visible(val)
+        self.visibility_changed.emit(visible=val)
 
-    def reset(self):
+    def queue_redraw(self):
+        if self._pending_update:
+            return
+
+        self._pending_update = True
+        self._redraw()
+
+    def _redraw(self):
+        self.dirty = 1
+
+    def _draw(self):
+        # TODO: this method needs to be called when
+        # draw group draw() is called
+        self._pending_update = False
+        self.draw.emit()
+
+    def update(self, dt: float):
+        self._update(dt)
+
+    def _reset(self):
         self.rect.update(self.origin, self.source_rect.size)
-        self.last_pos = self.rect.topleft
 
 
 # TODO:
 class Animation(pygame.sprite.WeakSprite):
 
-    def __init__(self, opts: AnimationOptions, frames: List[pygame.Surface]):
+    def __init__(self, opts: settings.AnimationOptions, frames: List[pygame.Surface]):
         self.repeat = opts.repeat
         self.frames = frames
         self.frames_inverted = [pygame.transform.flip(f, True, False) for f in frames]
@@ -68,14 +72,14 @@ class Animation(pygame.sprite.WeakSprite):
 
 class SpriteSheet(io.Loadable):
 
-    def __init__(self, opts: SpriteSheetSettings):
+    def __init__(self, opts: settings.SpriteSheetSettings):
         self.sprite_sheet = opts.sprite_sheet
         self.sprite_width = opts.sprite_width
         self.sprite_height = opts.sprite_height
         self.animations = self._load_animations(opts.animation_opts)
 
     def _load_animations(
-        self, animation_opts: List[AnimationOptions]
+        self, animation_opts: List[settings.AnimationOptions]
     ) -> Dict[str, Animation]:
         animations = {}
         # each row in the sprite sheet represents an animation

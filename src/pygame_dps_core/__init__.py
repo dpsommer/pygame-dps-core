@@ -1,33 +1,30 @@
 from ._conf import init
-from .diagnostics import Diagnostics, DiagnosticsSettings
-from .game import Game, GameSettings
+from .core import GameObject, Node, Signal
+from .flow.game import Game, GameSettings
+from .flow.scenes import Overlay, Scene, end_current_scene, get_active_scene, new_scene
 from .io import Configurable, Loadable
-from .keys import KeyBinding, key
-from .scenes import Overlay, Scene, end_current_scene, get_active_scene, new_scene
-from .sprites import (
+from .key import KeyBinding
+from .logs import setup_game_logger
+from .types import HorizontalAlignment, VerticalAlignment
+from .ui import Button, Menu
+from .ui.diagnostics import Diagnostics, DiagnosticsSettings
+from .ui.sprite import (
     Animation,
-    AnimationOptions,
     GameSprite,
-    SpriteOptions,
     SpriteSheet,
-    SpriteSheetSettings,
 )
-from .text import (
-    Align,
-    Margins,
+from .ui.text import (
     TextBox,
-    TextBoxSettings,
-    TextOptions,
-    TypewriterTextOptions,
-    VerticalAlign,
     multiline_text,
     text_sprite,
     typewriter,
 )
-from .ui import Button, ButtonOptions, Menu
 from .utils import coroutine, debounce, normalize_path_str
 
 __all__ = [
+    "GameObject",
+    "Node",
+    "Signal",
     "Game",
     "GameSettings",
     "Animation",
@@ -48,8 +45,8 @@ __all__ = [
     "TextBoxSettings",
     "TextOptions",
     "TypewriterTextOptions",
-    "Align",
-    "VerticalAlign",
+    "HorizontalAlignment",
+    "VerticalAlignment",
     "Configurable",
     "Loadable",
     "KeyBinding",
@@ -64,4 +61,5 @@ __all__ = [
     "debounce",
     "normalize_path_str",
     "init",
+    "setup_game_logger",
 ]

@@ -4,7 +4,7 @@ from typing import List
 
 import pygame
 
-from . import io
+from .. import io
 
 
 class Scene(io.Loadable, abc.ABC):

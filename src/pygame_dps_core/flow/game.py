@@ -4,8 +4,9 @@ from typing import Dict, Type
 
 import pygame
 
-from . import _conf, const, io, scenes, types
-from .keys import KeyBinding, key
+from .. import _conf, const, io, types
+from ..key.keys import KeyBinding, key
+from . import scenes
 
 
 @dataclasses.dataclass(frozen=True)

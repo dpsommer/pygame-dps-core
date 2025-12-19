@@ -1,0 +1,22 @@
+---
+font: fonts/PixelifySans-VariableFont_wght.ttf,24
+color: black
+justify: true
+text_speed: 5
+keepalive: 5
+auto_scroll: 3
+advance_text:
+  key: return
+skip:
+  key: z
+margins:
+  top: 25
+  left: 30
+  right: 30
+  bottom: 25
+box_sprite:
+  topleft: [20, 160]
+  image: assets/pokemon_text_box.png
+indicator:
+  topleft: [560, 300]
+  image: assets/caret.png

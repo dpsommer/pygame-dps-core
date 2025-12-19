@@ -4,12 +4,12 @@ from typing import Any, Dict, List, Type
 
 import pygame
 
-from . import scenes, text
+from . import settings, text
 
 
 @dataclasses.dataclass(frozen=True)
-class DiagnosticsSettings(text.TextOptions):
-    margins: text.Margins = dataclasses.field(default_factory=text.Margins)
+class DiagnosticsSettings(settings.TextOptions):
+    margins: settings.Margins = dataclasses.field(default_factory=settings.Margins)
 
 
 class Diagnostics(scenes.Overlay):

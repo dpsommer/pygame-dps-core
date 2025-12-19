@@ -1,12 +1,23 @@
 import functools
 import pathlib
 import threading
-from typing import Any, Dict, Tuple
+from typing import Any, Callable, Dict, Generator, Tuple
+
+T_coroutine = Callable[..., Generator[Any, Any, Any]]
 
 
-def coroutine(f):
+def coroutine(f: T_coroutine) -> T_coroutine:
+    """Decorator to prime and return a coroutine generator
+
+    Args:
+        f (Callable): the decorated function
+
+    Returns:
+        Generator: the wrapped generator function
+    """
+
     @functools.wraps(f)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, **kwargs) -> Generator[Any, Any, Any]:
         pipe = f(*args, **kwargs)
         next(pipe)
         return pipe
